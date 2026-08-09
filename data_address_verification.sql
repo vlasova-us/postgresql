@@ -35,206 +35,176 @@ from house
 left join params on house.objectid = params.objectid 
 
 
--- Административно-территориальное деление
-with cte1 as (
-				select aao.objectid, aao."name" as "name1", aao.typename  as "typename1"
-				from as_addr_obj aao 
-				where level = '1' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date  -- level 1- область
-				),
-	cte2 as (
-				select aao.objectid, aao."name" as "name2", aao.typename  as "typename2"
-				from as_addr_obj aao 
-				where level = '2' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 2 - районы области
-				),
-	cte3 as (
-				select aao.objectid, aao."name" as "name3", aao.typename  as "typename3" 
-				from as_addr_obj aao 
-				where level = '3' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 3 - г.о.
-				),
-	cte4 as (
-				select aao.objectid, aao."name" as "name4", aao.typename  as "typename4" 
-				from as_addr_obj aao 
-				where level = '4' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 4 - поселки
-				),
-	cte5 as (
-				select aao.objectid, aao."name" as "name5", aao.typename  as "typename5" 
-				from as_addr_obj aao 
-				where level = '5' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 5 - города
-				),
-	cte6 as (
-				select aao.objectid, aao."name" as "name6", aao.typename  as "typename6" 
-				from as_addr_obj aao 
-				where level = '6' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 6 - поселки, станции
-				),
-	cte7 as (
-				select aao.objectid, aao."name" as "name7", aao.typename  as "typename7"
-				from as_addr_obj aao 
-				where level = '7' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 7 - тер
-				),
-	cte8 as (
-				select aao.objectid, aao."name" as "name8", aao.typename  as "typename8" 
-				from as_addr_obj aao 
-				where level = '8' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 8 - улицы
-				),
-	house as (
-				select ashouse.objectguid as "fias_house", ashouse.objectid, ashouse.housenum, ashp.value as "post_index"
-				from as_houses ashouse 
-				inner join as_houses_params ashp on ashouse.objectid = ashp.objectid 
-				where ashouse.isactive = 1 and ashouse.isactual = 1 and ashouse.enddate > current_date
-					  and ashp.enddate > current_date and ashp.typeid = 5 -- почтовый индекс
-		          ),
-	flat as(
-				select asapa.objectguid, asapa.objectid, asapa."number" as "flat"
-				from as_apartments asapa 
-				where asapa.isactive = 1 and asapa.isactual = 1 and asapa.enddate > current_date
-				),	
-	rooms as (
-				select ar.objectid, ar.objectguid, ar.roomtype, ar."number" as "rooms"
-				from as_rooms ar 
-				where ar.isactual = 1 and ar.isactive = 1 and ar.enddate > current_date
-					),
-	path_col as ( 
-				select aah.objectid, 
-						(0 || split_part(aah."path", '.', 1))::integer as col1, (0 || split_part(aah."path", '.', 2))::integer as col2, 
-						(0 || split_part(aah."path", '.', 3))::integer as col3, (0 || split_part(aah."path", '.', 4))::integer as col4,
-						(0 || split_part(aah."path", '.', 5))::integer as col5, (0 || split_part(aah."path", '.', 6))::integer as col6
-				from as_adm_hierarchy aah 
-				where objectid in 
-								(select objectid 
-								from as_apartments aa 
-								where aa.isactual = 1 and aa.isactive = 1 and aa.enddate > current_date) 
-				)
-select pc.objectid, house.post_index, concat_ws(' ', cte1.name1, cte1.typename1) as region, concat_ws(' ', cte2.name2, cte2.typename2) as reg_district, 
-	   concat_ws(' ', cte3.name3, cte3.typename3), concat_ws(' ', cte4.name4, cte4.typename4), 
-	   concat_ws(' ', cte5.name5, cte5.typename5) as city, concat_ws(' ', cte6.name6, cte6.typename6) as settlement, 
-	   concat_ws(' ', cte7.name7, cte7.typename7) as village, concat_ws(' ', cte8.name8, cte8.typename8) as street, 
-	   house.housenum, house.fias_house, flat.flat, flat.objectguid as "gar_guid_flat"
-from path_col pc
-left join cte1 on pc.col1 = cte1.objectid 
-left join cte2 on cte2.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6)
-left join cte3 on cte3.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6)
-left join cte4 on cte4.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6)
-left join cte5 on cte5.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6)
-left join cte6 on cte6.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6)
-left join cte7 on cte7.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6)
-left join cte8 on cte8.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6)
-left join house on house.objectid in (pc.col3,pc.col4, pc.col5, pc.col6)
-left join flat on flat.objectid in (pc.col5, pc.col6)
---ORDER BY street.street, house.housenum, flat.flat
+-- Формирование плоской таблицы из локального справочника ГАР по АДМИНИСТРАТИВНОМУ делению
+WITH 
+    -- 1. Кэшируем и фильтруем только актуальные адресные объекты
+    cte_addr AS (
+        SELECT objectid, level, "name", typename
+        FROM as_addr_obj
+        WHERE isactual = 1 AND isactive = 1 AND enddate > CURRENT_DATE
+    ),
+    -- 2. Фильтрация и подготовка домов с почтовым индексом
+    house_base AS (
+        SELECT 
+            ashouse.objectid, ashouse.objectguid AS "fias_house", ashouse.housenum, ashp.value AS "post_index"
+        FROM as_houses ashouse 
+        INNER JOIN as_houses_params ashp ON ashouse.objectid = ashp.objectid 
+        WHERE ashouse.isactive = 1 AND ashouse.isactual = 1 AND ashouse.enddate > CURRENT_DATE
+          AND ashp.enddate > CURRENT_DATE AND ashp.typeid = 5
+    ),
+    -- 3. Фильтрация и подготовка квартир
+    flat_base AS (
+        SELECT objectguid, objectid, "number" AS "flat"
+        FROM as_apartments
+        WHERE isactive = 1 AND isactual = 1 AND enddate > CURRENT_DATE
+    ),	
+    -- 4. Перевод пути иерархии в массив целых чисел INTEGER[]
+    path_base AS ( 
+        SELECT 
+            aah.objectid, 
+            string_to_array(aah.path, '.')::integer[] AS path_arr
+        FROM as_adm_hierarchy aah 
+        WHERE aah.objectid IN (SELECT objectid FROM flat_base) 
+    )
+-- Основная выборка с сопоставлением уровней адреса
+SELECT 
+    pc.objectid, 
+    house.post_index, 
+    concat_ws(' ', c1.name, c1.typename) AS region, 
+    concat_ws(' ', c2.name, c2.typename) AS reg_district, 
+    concat_ws(' ', c3.name, c3.typename) AS reg_district_adm, -- уровень 3 в адм. делении
+    concat_ws(' ', c4.name, c4.typename) AS town,             -- уровень 4 (поселки)
+    concat_ws(' ', c5.name, c5.typename) AS city,             -- уровень 5 (города)
+    concat_ws(' ', c6.name, c6.typename) AS settlement,       -- уровень 6 (станции)
+    concat_ws(' ', c7.name, c7.typename) AS village,          -- уровень 7 (территории)
+    concat_ws(' ', c8.name, c8.typename) AS street,           -- уровень 8 (улицы)
+    house.housenum, 
+    house.fias_house, 
+    flat.flat, 
+    flat.objectguid AS "gar_guid_flat"
+FROM path_base pc
+-- LATERAL точечно вытаскивает данные из кэша по вхождению ID в массив пути (работает по индексу)
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '1' LIMIT 1) c1 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '2' LIMIT 1) c2 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '3' LIMIT 1) c3 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '4' LIMIT 1) c4 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '5' LIMIT 1) c5 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '6' LIMIT 1) c6 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '7' LIMIT 1) c7 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '8' LIMIT 1) c8 ON TRUE
+-- Сопоставление с домами и квартирами, чьи идентификаторы присутствуют в пути
+LEFT JOIN house_base house ON house.objectid = ANY(pc.path_arr)
+LEFT JOIN flat_base flat ON flat.objectid = ANY(pc.path_arr)
+ORDER BY c8.name, house.housenum, flat.flat;
 
 
 -- Формирование плоской таблицы из локального справочника ГАР по муниципальному делению
-with cte1 as (
-				select aao.objectid, aao."name" as "name1", aao.typename  as "typename1"
-				from as_addr_obj aao 
-				where level = '1' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date  -- level 1- область
-				),
-	cte2 as (
-				select aao.objectid, aao."name" as "name2", aao.typename  as "typename2"
-				from as_addr_obj aao 
-				where level = '2' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 2 - районы области
-				),
-	cte3 as (
-				select aao.objectid, aao."name" as "name3", aao.typename  as "typename3" 
-				from as_addr_obj aao 
-				where level = '3' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 3 - г.о.
-				),
-	cte4 as (
-				select aao.objectid, aao."name" as "name4", aao.typename  as "typename4" 
-				from as_addr_obj aao 
-				where level = '4' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 4 - поселки
-				),
-	cte5 as (
-				select aao.objectid, aao."name" as "name5", aao.typename  as "typename5" 
-				from as_addr_obj aao 
-				where level = '5' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 5 - города
-				),
-	cte6 as (
-				select aao.objectid, aao."name" as "name6", aao.typename  as "typename6" 
-				from as_addr_obj aao 
-				where level = '6' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 6 - поселки, станции
-				),
-	cte7 as (
-				select aao.objectid, aao."name" as "name7", aao.typename  as "typename7"
-				from as_addr_obj aao 
-				where level = '7' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 7 - тер
-				),
-	cte8 as (
-				select aao.objectid, aao."name" as "name8", aao.typename  as "typename8" 
-				from as_addr_obj aao 
-				where level = '8' and aao.isactual = 1 and aao.isactive = 1 and aao.enddate > current_date -- level 8 - улицы
-				),
-	house as (
-				with params_house as(
-									select ahp.objectid , ahp.value  
-									from as_houses_params ahp 
-									where ahp.enddate > current_date and ahp.typeid  = 5 -- post_index
-									)
-				select ah.objectid , params_house.value as "post_index", ah.objectguid as "fias_house" , as_house_types.shortname , 
-						ah.housenum , as_addhouse_types.shortname as "type1", ah.addnum1, aaat.shortname as "type2", ah.addnum2
-				from as_houses ah 
-				left join  params_house on ah.objectid = params_house.objectid
-				left join as_house_types on ah.housetype = as_house_types.id 
-				left join as_addhouse_types on ah.addtype1 = as_addhouse_types.id
-				left join as_addhouse_types as aaat on ah.addtype2 = aaat.id
-				where ah.isactive = 1 and ah.enddate > current_date and ah.isactual = 1
-		          ),
-	flat as(
-				with params_flat as (select aap.objectid, aap.value
-									 from as_apartmens_params aap
-									 where aap.typeid = 8 and aap.enddate > current_date)
-				select asapa.objectguid, asapa.objectid, asapa."number" as "flat", params_flat.value as cadastral_numb_flat, aat."name" , aat.shortname  
-				from as_apartments asapa 
-				left join params_flat on asapa.objectid = params_flat.objectid 
-				left join as_apartment_types aat on asapa.aparttype = aat.id
-				where asapa.isactive = 1 and asapa.isactual = 1 and asapa.enddate > current_date
-				),	
-	rooms as (
-				with params_room as (
-							        select arp.objectid, arp.value
-				            		from as_rooms_params arp
-									 where arp.typeid = 8 and arp.enddate > current_date
-									)
-				select amh.parentobjid, ar.objectid, ar.objectguid, ar.roomtype, as_room_types.shortname , ar."number", 
-						params_room.value as "cadastral_numb_room"
-				from as_rooms ar 
-				inner join as_mun_hierarchy amh on amh.objectid = ar.objectid 
-				left join  params_room on ar.objectid = params_room.objectid
-				left join as_room_types on ar.roomtype = as_room_types.id 
-					),
-	path_col as ( 
-				select amh.objectid, 
-						(0 || split_part(amh."path", '.', 1))::integer as col1, (0 || split_part(amh."path", '.', 2))::integer as col2, 
-						(0 || split_part(amh."path", '.', 3))::integer as col3, (0 || split_part(amh."path", '.', 4))::integer as col4,
-						(0 || split_part(amh."path", '.', 5))::integer as col5, (0 || split_part(amh."path", '.', 6))::integer as col6,
-						(0 || split_part(amh."path", '.', 7))::integer as col7
-				from as_mun_hierarchy amh 
-				where objectid in 
-								(select objectid 
-								from as_apartments aa 
-								where aa.isactual = 1 and aa.isactive = 1 and aa.enddate > current_date) 
-				)
-select pc.objectid, rooms.objectid as "objectid_rooms", concat_ws(' ', cte1.name1, cte1.typename1) as region, 
-	   concat_ws(' ', cte2.name2, cte2.typename2) as reg_district, 
-	   concat_ws(' ', cte3.name3, cte3.typename3) as reg_district_mun, concat_ws(' ', cte4.name4, cte4.typename4) as city_district, 
-	   concat_ws(' ', cte5.name5, cte5.typename5) as city, concat_ws(' ', cte6.name6, cte6.typename6) as settlement, 
-	   concat_ws(' ', cte7.name7, cte7.typename7) as village, concat_ws(' ', cte8.name8, cte8.typename8) as street, 
-	   house.post_index, house.fias_house, house.shortname, house.housenum, house.type1, house.addnum1, house.type2, house.addnum2,
-	   flat."name", flat.flat, flat.objectguid as "gar_guid_flat", flat.cadastral_numb_flat, -- тип apartmet, номер, ГАР, кадастровый номер
-	   rooms.objectguid as "gar_guid_rooms", rooms.shortname , rooms."number" as "room", rooms.cadastral_numb_room
-from path_col pc
-left join cte1 on pc.col1 = cte1.objectid 
-left join cte2 on cte2.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6, pc.col7)
-left join cte3 on cte3.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6, pc.col7)
-left join cte4 on cte4.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6, pc.col7)
-left join cte5 on cte5.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6, pc.col7)
-left join cte6 on cte6.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6, pc.col7)
-left join cte7 on cte7.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6, pc.col7)
-left join cte8 on cte8.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6, pc.col7)
-left join house on house.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6, pc.col7)
-left join flat on flat.objectid in (pc.col2, pc.col3, pc.col4, pc.col5, pc.col6, pc.col7)
-left join rooms on flat.objectid = rooms.parentobjid
-ORDER BY street, house.housenum, flat.flat
+WITH 
+    -- 1. Кэшируем актуальные адресные объекты
+    cte_addr AS (
+        SELECT objectid, level, "name", typename
+        FROM as_addr_obj
+        WHERE isactual = 1 AND isactive = 1 AND enddate > CURRENT_DATE
+    ),
+    -- 2. Подготовка параметров домов (почтовый индекс)
+    params_house AS (
+        SELECT ahp.objectid, ahp.value AS post_index  
+        FROM as_houses_params ahp 
+        WHERE ahp.enddate > CURRENT_DATE AND ahp.typeid = 5
+    ),
+    -- 3. Подготовка домов с их типами
+    house_base AS (
+        SELECT 
+            ah.objectid, params_house.post_index, ah.objectguid AS fias_house, 
+            aht.shortname, ah.housenum, aaat1.shortname AS type1, 
+            ah.addnum1, aaat2.shortname AS type2, ah.addnum2
+        FROM as_houses ah 
+        LEFT JOIN params_house ON ah.objectid = params_house.objectid
+        LEFT JOIN as_house_types aht ON ah.housetype = aht.id 
+        LEFT JOIN as_addhouse_types aaat1 ON ah.addtype1 = aaat1.id
+        LEFT JOIN as_addhouse_types aaat2 ON ah.addtype2 = aaat2.id
+        WHERE ah.isactive = 1 AND ah.isactual = 1 AND ah.enddate > CURRENT_DATE
+    ),
+    -- 4. Подготовка квартир и их кадастровых номеров
+    params_flat AS (
+        SELECT aap.objectid, aap.value AS cadastral_numb_flat
+        FROM as_apartmens_params aap
+        WHERE aap.typeid = 8 AND aap.enddate > CURRENT_DATE
+    ),
+    flat_base AS (
+        SELECT 
+            asapa.objectguid, asapa.objectid, asapa."number" AS flat, 
+            params_flat.cadastral_numb_flat, aat."name", aat.shortname  
+        FROM as_apartments asapa 
+        LEFT JOIN params_flat ON asapa.objectid = params_flat.objectid 
+        LEFT JOIN as_apartment_types aat ON asapa.aparttype = aat.id
+        WHERE asapa.isactive = 1 AND asapa.isactual = 1 AND asapa.enddate > CURRENT_DATE
+    ),	
+    -- 5. Подготовка комнат
+    params_room AS (
+        SELECT arp.objectid, arp.value AS cadastral_numb_room
+        FROM as_rooms_params arp
+        WHERE arp.typeid = 8 AND arp.enddate > CURRENT_DATE
+    ),
+    rooms_base AS (
+        SELECT 
+            amh.parentobjid, ar.objectid, ar.objectguid, ar.roomtype, 
+            art.shortname, ar."number", params_room.cadastral_numb_room
+        FROM as_rooms ar 
+        INNER JOIN as_mun_hierarchy amh ON amh.objectid = ar.objectid 
+        LEFT JOIN params_room ON ar.objectid = params_room.objectid
+        LEFT JOIN as_room_types art ON ar.roomtype = art.id 
+        WHERE ar.isactual = 1 AND ar.isactive = 1 AND ar.enddate > CURRENT_DATE
+    ),
+    -- 6. Преобразование пути муниципального ГАР в массив INTEGER[]
+    path_base AS ( 
+        SELECT 
+            amh.objectid, 
+            string_to_array(amh.path, '.')::integer[] AS path_arr
+        FROM as_mun_hierarchy amh 
+        WHERE amh.objectid IN (SELECT objectid FROM flat_base) 
+    )
+-- Итоговая сборка плоской муниципальной структуры
+SELECT 
+    pc.objectid, 
+    rm.objectid AS "objectid_rooms", 
+    concat_ws(' ', c1.name, c1.typename) AS region, 
+    concat_ws(' ', c2.name, c2.typename) AS reg_district, 
+    concat_ws(' ', c3.name, c3.typename) AS reg_district_mun, 
+    concat_ws(' ', c4.name, c4.typename) AS city_district, 
+    concat_ws(' ', c5.name, c5.typename) AS city, 
+    concat_ws(' ', c6.name, c6.typename) AS settlement, 
+    concat_ws(' ', c7.name, c7.typename) AS village, 
+    concat_ws(' ', c8.name, c8.typename) AS street, 
+    h.post_index, h.fias_house, h.shortname, h.housenum, h.type1, h.addnum1, h.type2, h.addnum2,
+    f."name", f.flat, f.objectguid AS "gar_guid_flat", f.cadastral_numb_flat,
+    rm.objectguid AS "gar_guid_rooms", rm.shortname, rm.number AS "room", rm.cadastral_numb_room
+FROM path_base pc
+-- Сопоставление с помощью LATERAL (использует индекс)
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '1' LIMIT 1) c1 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '2' LIMIT 1) c2 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '3' LIMIT 1) c3 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '4' LIMIT 1) c4 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '5' LIMIT 1) c5 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '6' LIMIT 1) c6 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '7' LIMIT 1) c7 ON TRUE
+LEFT JOIN LATERAL (SELECT name, typename FROM cte_addr WHERE objectid = ANY(pc.path_arr) AND level = '8' LIMIT 1) c8 ON TRUE
+-- Привязка домов, квартир и комнат
+LEFT JOIN house_base h ON h.objectid = ANY(pc.path_arr)
+LEFT JOIN flat_base f ON f.objectid = ANY(pc.path_arr)
+LEFT JOIN rooms_base rm ON f.objectid = rm.parentobjid
+ORDER BY c8.name, h.housenum, f.flat
+
+-- Главный составной индекс для мгновенной выборки внутри LATERAL
+CREATE INDEX IF NOT EXISTS idx_as_addr_obj_perf 
+ON as_addr_obj (objectid, level) 
+WHERE isactual = 1 AND isactive = 1 AND enddate > CURRENT_DATE;
+-- Индексы для точечного связывания (ускоряет оператор ANY)
+CREATE INDEX IF NOT EXISTS idx_as_houses_perf ON as_houses (objectid) WHERE isactive = 1 AND isactual = 1;
+CREATE INDEX IF NOT EXISTS idx_as_apartments_perf ON as_apartments (objectid) WHERE isactive = 1 AND isactual = 1;
+-- Индексы по иерархиям на поиск по objectid
+CREATE INDEX IF NOT EXISTS idx_as_adm_hierarchy_obj ON as_adm_hierarchy (objectid);
+CREATE INDEX IF NOT EXISTS idx_as_mun_hierarchy_obj ON as_mun_hierarchy (objectid);
 
 
 --- Добавление статусов по адресам в таблицы биллингов по теплу
